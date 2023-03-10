@@ -1,0 +1,10 @@
+https://www.kaggle.com/datasets/sadhliroomyprime/cricket-semantic-segmentation
+https://www.kaggle.com/datasets/faizalkarim/flood-area-segmentation?select=Image
+https://www.kaggle.com/datasets/marcosgabriel/photovoltaic-system-thermal-inspection
+https://www.kaggle.com/datasets/yjh4374/sisvse-dataset
+https://www.kaggle.com/datasets/franzwagner/river-water-segmentation-dataset
+https://www.kaggle.com/datasets/tapakah68/face-segmentation
+https://www.kaggle.com/datasets/ketzoomer/table-tennis-segmentation-masks-for-scene-analysis
+https://www.kaggle.com/datasets/alexanderyyy/lvis-v1
+https://www.kaggle.com/datasets/luznoc/synthetic-dataset-for-home-interior
+https://www.kaggle.com/datasets/jadesag3/ms-synthetic-face
