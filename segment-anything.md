@@ -1,16 +1,15 @@
 Segment anything proto notes 
 
 
-# %%bash 
+```bash
+mkdir assets 
+wget -q https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth > null
+wget -q https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth > null
+wget -q https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth > null
+wget https://fastly.picsum.photos/id/1/5000/3333.jpg?hmac=Asv2DU3rA_5D1xSe22xZK47WEAN0wjWeFOhzd13ujW4
+pip install opencv-python pycocotools matplotlib onnxruntime onnx
+```
 
-# mkdir assets 
-# wget -q https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth > null
-# wget -q https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth > null
-# wget -q https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth > null
-# %%bash 
-# wget https://fastly.picsum.photos/id/1/5000/3333.jpg?hmac=Asv2DU3rA_5D1xSe22xZK47WEAN0wjWeFOhzd13ujW4
-# %%bash
-# pip install opencv-python pycocotools matplotlib onnxruntime onnx
 
 ```python 
 def show_anns(anns):
