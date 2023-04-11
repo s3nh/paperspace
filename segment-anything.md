@@ -1,5 +1,12 @@
 Segment anything proto notes 
 
+```
+Model name:                      Intel(R) Xeon(R) Gold 5315Y CPU @ 3.20GHz
+Stepping:                        6
+CPU MHz:                         3199.868
+```
+
+
 
 ```bash
 mkdir assets 
