@@ -1,21 +1,21 @@
+
 import argparse
 import pandas as pd 
+import pathlib
 import pickle as pkl
 import transformers
 import torch 
 import json
 
+from pathlib import Path
 from torch.utils.data import Dataset, random_split
 from transformers import AutoTokenizer 
 from transformers import TrainingArguments
 from transformers import Trainer
-from transformers import AutoModelForCasualLM
-from transformers.data.data_collator  import DataCollatorWitHPadding
 
 from transformers import HfArgumentParser
 from transformers import TrainingArguments
-from typing import List, Dict, Union
-from typing import Any, TypeVar
+from typing import List, Tuple, Union
 torch.manual_seed(42)
 
 def get_args():
@@ -38,16 +38,14 @@ class CFG:
 
 config =  CFG();
 
-def load_model(**kwargs):
-    model = AutoModelForCasualLM.from_pretrained(config.model_anme)
+def load_model(name):
+    model = AutoModelForCasualLM.from_pretrained(name)
     if config.cuda:
         return model.cuda()
     return model
 
-
-def load_tokenizer(**kwargs):
-    tokenizer = AutoTokenizer.from_prertaind(config.tokenizer_name)
-    #add pad_tken if it does not exist by default
+def load_tokenizer(name):
+    tokenizer = AutoTokenizer.from_pretraind(name)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     return tokenizer
@@ -84,7 +82,6 @@ class InstructDataset(Dataset):
             
     def __len__(self):
         return len(self.input_ids)
-    
 
     def __getitem__(self, idx) -> Tuple[List, List]:
         return self.input_ids[idx], self.attn_masks[idx]
@@ -92,7 +89,6 @@ class InstructDataset(Dataset):
 Pathable = Union[str, pathlib.Path]
 
 def get_extension(input_path: Pathable):
-
     if isinstance(input_path, pathlib.Path):
         input_path = str(input_path)
     return input_path.split('.')[-1]
@@ -114,26 +110,68 @@ def dataset_prep(configtokenizer) -> Tuple[torch.utils.data.Dataset, torch.utils
     train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
     return train_dataset, val_dataset
 
-def save_training_args(args: TrainingArguments, config.args_path) -> None:
+def save_training_args(args: TrainingArguments) -> None:
     args_json = args.to_json_string()
     with open(config.args_path, 'w') as outfile:
         outfile.write(args_json)
 
-def load_training_args(config.args_path) -> TrainingArguments:
+def load_training_args() -> TrainingArguments:
     parser = HfArgumentParser(TrainingArguments)
     training_args, = parser.parse_json_file(json_file = config.args_path)
     return training_args
 
-def parse_model_name(model_name: str):
+def parse_model_name(model_name: str) -> str:
     return model_name.split('/')[-1]
 
 def create_outpath(model_name) -> None:
+    name: str = parse_model_name(model_name=model_name)
+    outpath = f"./result/{name}"
+    return outpath
 
+def create_training_args():
+    ...
+    # How to properly create training algorithms
 
+# def  collate_data(data):
+#     lambda data: {'input_ids': torch.stack([f[0] for f in data]),
+#     'attention_mask': torch.stack([f[1] for f in data]),
+#     'labels': torch.stack([f[0] for f in data])}).train()
+
+def train():
+    ...
 
 def main():
-    model = load_model()
-    tokenizer = load_tokenizer()
+    args = get_args()
+    args_list: List = [args.model_name, args.destination, args.tokenizer] 
+    # If empty, go straight to  config
+    if "" in args_list:
+        model_name = config.model_name
+        tokenizer_name = config.tokenizer_name
+
+    else:
+        model_name = args.model
+        tokenizer_name = args.tokenizer
+    
+    parsed_name = parse_model_name(model_name)
+    output_path = create_outpath(parsed_name)
+    model = load_model(model_name)
+    tokenizer = load_tokenizer(tokenizer_name)
     train_dataset, val_dataset = dataset_prep(config = config)
 
+    training_args = TrainingArguments(output_dir=output_path, num_train_epochs=2, logging_steps=5000,
+                                  per_device_train_batch_size=8, per_device_eval_batch_size=2,
+                                  warmup_steps=10, weight_decay=0.01,
+                                  learning_rate = 1e-3, logging_dir='./logs', 
+                                 save_total_limit=2)
+    
+    trainer = Trainer(model = model, 
+            args = training_args, 
+            train_dataset = train_dataset, 
+            eval_dataset = val_dataset, 
+            data_collator= lambda data: {'input_ids': torch.stack([f[0] for f in data]),
+                                                              'attention_mask': torch.stack([f[1] for f in data]),
+                                                              'labels': torch.stack([f[0] for f in data])}).train()
+    trainer.train()
 
+if __name__ == "__main__":
+    main()
