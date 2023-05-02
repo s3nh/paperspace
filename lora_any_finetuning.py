@@ -16,6 +16,13 @@ from transformers import Trainer
 from transformers import HfArgumentParser
 from transformers import TrainingArguments
 from typing import List, Tuple, Union
+from peft import (
+    LoraConfig,
+    get_peft_model,
+    get_peft_model_state_dict,
+    prepare_model_for_int8_training,
+    set_peft_model_state_dict,
+)
 torch.manual_seed(42)
 
 def get_args():
@@ -23,6 +30,7 @@ def get_args():
     parser.add_argument('-m', '--model', nargs="?", default="")
     parser.add_argument('-d', '--destination', nargs="?", default="")
     parser.add_argument('-t', '--tokenizer', nargs="?", default="")
+    parser.add_argument('-l', '--lora', type=bool, nargs="?", default=True)
     args = parser.parse_args()
     return args
 
@@ -35,8 +43,24 @@ class CFG:
     train_ratio: float = 0.9
     args_path: str = 'args.json'
     data_path: str = 'data.csv'
-
+    lora: bool = True
+    lora_r: int = 8
+    lora_alpha: int = 16
+    lora_dropout: float = 0.05
+    lora_target_modules: List[str] = [
+        "q_proj", 
+        "v_proj",
+    ]
 config =  CFG();
+
+lora_config = LoraConfig(
+        r= config.lora_r,
+        lora_alpha= config.lora_alpha,
+        #target_modules= config.lora_target_modules,
+        lora_dropout= config.lora_dropout,
+        bias="none",
+        task_type="CAUSAL_LM",
+)
 
 def load_model(name):
     model = AutoModelForCausalLM.from_pretrained(name)
@@ -63,7 +87,7 @@ def generate_prompt(instruction: str, input: str, response: str):
 ### Response:
 {response}
 """
-
+    
 class InstructDataset(Dataset):
     
     def __init__(self, data, tokenizer, max_length):
@@ -103,6 +127,7 @@ def read_data(input_path: Pathable):
         raise BasicException("Please provide a proper file extension")
 
 def dataset_prep(configtokenizer) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]:
+
     input_data = read_data(config.data_path)
     dataset = InstructDataset(data = input_data, tokenizer = tokenizer, max_length = config.max_length)
     train_size = int(config.train_ratio * len(input_data))
@@ -137,6 +162,7 @@ def create_training_args():
 #     'attention_mask': torch.stack([f[1] for f in data]),
 #     'labels': torch.stack([f[0] for f in data])}).train()
 
+
 def train():
     ...
 
@@ -155,6 +181,9 @@ def main():
     parsed_name = parse_model_name(model_name)
     output_path = create_outpath(parsed_name)
     model = load_model(model_name)
+    if config.lora:
+        model = get_peft_model(model, lora_config)
+        output_path = output_path + '_lora'
     tokenizer = load_tokenizer(tokenizer_name)
     
     
