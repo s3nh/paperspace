@@ -1,0 +1,139 @@
+import argparse
+import pandas as pd 
+import pickle as pkl
+import transformers
+import torch 
+import json
+
+from torch.utils.data import Dataset, random_split
+from transformers import AutoTokenizer 
+from transformers import TrainingArguments
+from transformers import Trainer
+from transformers import AutoModelForCasualLM
+from transformers.data.data_collator  import DataCollatorWitHPadding
+
+from transformers import HfArgumentParser
+from transformers import TrainingArguments
+from typing import List, Dict, Union
+from typing import Any, TypeVar
+torch.manual_seed(42)
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--model', nargs="?", default="")
+    parser.add_argument('-d', '--destination', nargs="?", default="")
+    parser.add_argument('-t', '--tokenizer', nargs="?", default="")
+    args = parser.parse_args()
+    return args
+
+class CFG:
+    model_name: str = 'name-of-model'
+    tokenizer_name: str = 'name-of-tokenizer'
+    max_length: int  = 512
+    device: str = 'cuda'
+    cuda: bool 
+    train_ratio: float = 0.9
+    args_path: str = 'args.json'
+    data_path: str = 'data.csv'
+
+config =  CFG();
+
+def load_model(**kwargs):
+    model = AutoModelForCasualLM.from_pretrained(config.model_anme)
+    if config.cuda:
+        return model.cuda()
+    return model
+
+
+def load_tokenizer(**kwargs):
+    tokenizer = AutoTokenizer.from_prertaind(config.tokenizer_name)
+    #add pad_tken if it does not exist by default
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    return tokenizer
+
+def generate_prompt(instruction: str, input: str, response: str):
+    if input:
+        return f"""Poniżej znajduje się instrukcja opisująca zadanie, połączona z danymi wejściowymi, które zapewniają dalszy konktekst. Napisz odpowiedź, która odpowiednio odpowie na pytanie.
+
+### Instruction:
+{instruction}
+
+### Input:
+{input}
+|
+### Response:
+{response}
+"""
+
+class InstructDataset(Dataset):
+    
+    def __init__(self, data, tokenizer, max_length):
+        
+        self.input_ids: List = []
+        self.attn_masks: List = []
+        self.labels: List = []
+        
+        for txt in data:
+            instruction = generate_prompt(instruction = txt['instruction'], 
+                                          input = txt['input'], 
+                                          response = txt['output'])
+            encodings_dict = tokenizer(instruction, padding="max_length", max_length = max_length, truncation=True)
+            self.input_ids.append(torch.tensor(encodings_dict['input_ids']))
+            self.attn_masks.append(torch.tensor(encodings_dict['attention_mask']))
+            
+    def __len__(self):
+        return len(self.input_ids)
+    
+
+    def __getitem__(self, idx) -> Tuple[List, List]:
+        return self.input_ids[idx], self.attn_masks[idx]
+    
+Pathable = Union[str, pathlib.Path]
+
+def get_extension(input_path: Pathable):
+
+    if isinstance(input_path, pathlib.Path):
+        input_path = str(input_path)
+    return input_path.split('.')[-1]
+
+class BasicException(Exception):
+    ...
+
+def read_data(input_path: Pathable):
+    proper_types: List = ['csv', 'json', '']
+    extension = get_extension(input_path) 
+    if extension not in proper_types:
+        raise BasicException("Please provide a proper file extension")
+
+def dataset_prep(configtokenizer) -> Tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]:
+    input_data = read_data(config.data_path)
+    dataset = InstructDataset(data = input_data, tokenizer = tokenizer, max_length = config.max_length)
+    train_size = int(config.train_ratio * len(input_data))
+    val_size = len(dataset) - train_size
+    train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
+    return train_dataset, val_dataset
+
+def save_training_args(args: TrainingArguments, config.args_path) -> None:
+    args_json = args.to_json_string()
+    with open(config.args_path, 'w') as outfile:
+        outfile.write(args_json)
+
+def load_training_args(config.args_path) -> TrainingArguments:
+    parser = HfArgumentParser(TrainingArguments)
+    training_args, = parser.parse_json_file(json_file = config.args_path)
+    return training_args
+
+def parse_model_name(model_name: str):
+    return model_name.split('/')[-1]
+
+def create_outpath(model_name) -> None:
+
+
+
+def main():
+    model = load_model()
+    tokenizer = load_tokenizer()
+    train_dataset, val_dataset = dataset_prep(config = config)
+
+
